@@ -1,0 +1,100 @@
+# ================================================================================
+# Git Ignore File for "The Audible Integrator"
+# ================================================================================
+#
+# Project:        Week 1 Project 1: The Audible Integrator
+# Author:         Ryan Kamp
+# Affiliation:    University of Cincinnati Department of Computer Science
+# Email:          kamprj@mail.uc.edu
+# GitHub:         https://github.com/ryanjosephkamp
+#
+# Created:        January 21, 2026
+# Last Updated:   January 21, 2026
+#
+# ================================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+ENV/
+
+# IDE settings
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Audio files generated during testing
+*.wav
+*.mp3
+*.ogg
+
+# Plot outputs (can be regenerated)
+*.png
+*.pdf
+*.svg
+
+# LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.bbl
+*.blg
+*.synctex.gz
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment variables
+.env
+.env.local

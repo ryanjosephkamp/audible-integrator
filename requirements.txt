@@ -1,0 +1,31 @@
+# ================================================================================
+# Project Dependencies for "The Audible Integrator"
+# ================================================================================
+#
+# Project:        Week 1 Project 1: The Audible Integrator
+# Description:    Sonification of Energy Drift in Numerical Integration
+#
+# Author:         Ryan Kamp
+# Affiliation:    University of Cincinnati Department of Computer Science
+# Email:          kamprj@mail.uc.edu
+# GitHub:         https://github.com/ryanjosephkamp
+#
+# Created:        January 21, 2026
+# Last Updated:   January 21, 2026
+#
+# ================================================================================
+
+# Core scientific computing
+numpy>=1.21.0
+
+# Visualization
+matplotlib>=3.5.0
+
+# Audio sonification (optional - for real-time sound)
+sounddevice>=0.4.4
+
+# Interactive web application
+streamlit>=1.20.0
+
+# For development
+pytest>=7.0.0
