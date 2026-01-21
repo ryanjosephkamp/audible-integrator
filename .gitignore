@@ -74,8 +74,11 @@ htmlcov/
 
 # Plot outputs (can be regenerated)
 *.png
-*.pdf
+# *.pdf  # Commented out to allow IEEE paper PDF
 *.svg
+
+# Allow compiled report PDFs in docs/
+# docs/*.pdf is tracked
 
 # LaTeX auxiliary files
 *.aux
@@ -98,3 +101,6 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+
+# Allow compiled IEEE paper PDF
+!docs/*.pdf
