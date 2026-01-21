@@ -213,6 +213,7 @@ if st.sidebar.button("▶️ Run Simulation", type="primary"):
         )
         st.session_state['result'] = result
         st.session_state['integrator_name'] = integrator_name
+        st.session_state['system_type'] = system_type  # Store system type used for simulation
 
 
 # ============================================================================
@@ -221,6 +222,8 @@ if st.sidebar.button("▶️ Run Simulation", type="primary"):
 
 if 'result' in st.session_state:
     result = st.session_state['result']
+    # Use the system type that was used when the simulation was run
+    result_system_type = st.session_state.get('system_type', 'Harmonic Oscillator')
     
     # Metrics row
     col1, col2, col3, col4 = st.columns(4)
@@ -287,7 +290,7 @@ if 'result' in st.session_state:
     with tab2:
         fig, ax = plt.subplots(figsize=(8, 8))
         
-        if system_type == "Harmonic Oscillator":
+        if result_system_type == "Harmonic Oscillator":
             positions = result.positions.flatten()
             velocities = result.velocities.flatten()
             
@@ -388,11 +391,12 @@ st.header("🔬 Compare All Integrators")
 
 if st.button("📊 Run Comparison", type="secondary"):
     with st.spinner("Running all four integrators..."):
-        # Create system
+        # Create system based on current dropdown selection
         if system_type == "Harmonic Oscillator":
             system = HarmonicOscillator(mass=1.0, spring_constant=1.0)
         else:
             system = DoublePendulum(m1=1.0, m2=1.0, L1=1.0, L2=1.0)
+        st.session_state['comparison_system_type'] = system_type
         
         config = SimulationConfig(dt=dt, duration=duration, realtime=False, audio_enabled=False)
         results = compare_integrators(system, initial_position, initial_velocity, config)
