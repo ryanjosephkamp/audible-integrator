@@ -39,13 +39,21 @@ import queue
 import time
 
 # Try to import audio libraries
+# Note: sounddevice requires PortAudio system library, which may not be available
+# on cloud platforms like Streamlit Cloud. We catch both ImportError and OSError.
 try:
     import sounddevice as sd
+    # Test if PortAudio is actually available by querying devices
+    sd.query_devices()
     AUDIO_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError) as e:
     AUDIO_AVAILABLE = False
-    print("Warning: sounddevice not available. Audio output disabled.")
-    print("Install with: pip install sounddevice")
+    sd = None  # Define sd as None for type checking
+    # Only print warning if not running in Streamlit Cloud
+    import os
+    if not os.environ.get('STREAMLIT_SERVER_HEADLESS'):
+        print(f"Warning: Audio not available ({type(e).__name__}). Audio output disabled.")
+        print("For local audio, install PortAudio: brew install portaudio && pip install sounddevice")
 
 
 @dataclass
