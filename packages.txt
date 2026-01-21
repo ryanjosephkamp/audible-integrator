@@ -1,3 +1,0 @@
-# System packages for Streamlit Cloud
-# Note: Audio is optional - the app works without it
-# libportaudio2
