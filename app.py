@@ -122,9 +122,16 @@ system_type = st.sidebar.selectbox(
 )
 
 # Integrator selection
+INTEGRATOR_MAP = {
+    "Forward Euler": "euler",
+    "Runge-Kutta 4": "rk4",
+    "Velocity Verlet": "verlet",
+    "Leapfrog": "leapfrog"
+}
+
 integrator_name = st.sidebar.selectbox(
     "Numerical Integrator",
-    ["Forward Euler", "Runge-Kutta 4", "Velocity Verlet", "Leapfrog"],
+    list(INTEGRATOR_MAP.keys()),
     index=0,
     help="Choose the integration algorithm"
 )
@@ -169,7 +176,7 @@ else:
 # ============================================================================
 
 @st.cache_data
-def run_simulation(system_type, integrator_name, dt, duration, x0_tuple, v0_tuple):
+def run_simulation(system_type, integrator_key, dt, duration, x0_tuple, v0_tuple):
     """Run simulation with caching for performance."""
     x0 = np.array(x0_tuple)
     v0 = np.array(v0_tuple)
@@ -180,8 +187,8 @@ def run_simulation(system_type, integrator_name, dt, duration, x0_tuple, v0_tupl
     else:
         system = DoublePendulum(m1=1.0, m2=1.0, L1=1.0, L2=1.0)
     
-    # Create integrator
-    integrator = get_integrator(integrator_name.lower().replace(' ', '_').replace('-', '_'))
+    # Create integrator using the key directly
+    integrator = get_integrator(integrator_key)
     
     # Run simulation
     config = SimulationConfig(dt=dt, duration=duration, realtime=False, audio_enabled=False)
@@ -194,9 +201,11 @@ def run_simulation(system_type, integrator_name, dt, duration, x0_tuple, v0_tupl
 # Run button
 if st.sidebar.button("▶️ Run Simulation", type="primary"):
     with st.spinner("Running simulation..."):
+        # Map display name to integrator key
+        integrator_key = INTEGRATOR_MAP[integrator_name]
         result = run_simulation(
             system_type,
-            integrator_name,
+            integrator_key,
             dt,
             duration,
             tuple(initial_position.tolist()),
