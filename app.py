@@ -35,6 +35,7 @@ import time
 from typing import Optional
 import sys
 from pathlib import Path
+import io
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -46,6 +47,102 @@ from src.integrators import (
 from src.physics import HarmonicOscillator, DoublePendulum
 from src.simulation import Simulator, SimulationConfig, compare_integrators
 from src.sonification import SonificationConfig, EnergyToAudio
+
+
+def generate_sonification_audio(energies: np.ndarray, times: np.ndarray, 
+                                 initial_energy: float, sample_rate: int = 44100) -> bytes:
+    """
+    Generate WAV audio bytes from energy time series for web playback.
+    
+    Maps energy values to pitch (frequency) and amplitude, creating an auditory
+    representation of the simulation's energy conservation.
+    
+    Args:
+        energies: Array of energy values over time
+        times: Array of time values
+        initial_energy: Reference energy for mapping
+        sample_rate: Audio sample rate (Hz)
+        
+    Returns:
+        WAV file as bytes
+    """
+    import struct
+    import wave
+    
+    # Audio parameters
+    base_freq = 220.0  # A3
+    freq_range = 440.0
+    base_amplitude = 0.4
+    
+    # Calculate duration and samples
+    duration = times[-1] - times[0]
+    num_samples = int(duration * sample_rate)
+    
+    # Interpolate energy to audio sample rate
+    audio_times = np.linspace(times[0], times[-1], num_samples)
+    audio_energies = np.interp(audio_times, times, energies)
+    
+    # Generate audio samples
+    samples = np.zeros(num_samples)
+    phase = 0.0
+    
+    # Energy-to-audio mapping
+    energy_mapper = EnergyToAudio(SonificationConfig(), initial_energy)
+    
+    for i in range(num_samples):
+        energy = audio_energies[i]
+        energy_mapper.update_energy(energy)
+        
+        # Map energy to frequency (logarithmic)
+        ratio = max(energy / initial_energy, 0.01)
+        log_ratio = np.log2(ratio)
+        freq = base_freq + log_ratio * freq_range / 2
+        freq = np.clip(freq, 80.0, 2000.0)
+        
+        # Map energy to amplitude
+        amplitude = base_amplitude * min(ratio, 2.0)
+        amplitude = np.clip(amplitude, 0.1, 0.8)
+        
+        # Get distortion amount
+        distortion = energy_mapper.get_distortion_amount()
+        
+        # Generate sample with harmonics
+        sample = np.sin(phase)
+        sample += 0.5 * np.sin(phase * 2)  # 2nd harmonic
+        sample += 0.25 * np.sin(phase * 3)  # 3rd harmonic
+        
+        # Apply distortion (soft clipping)
+        if distortion > 0.01:
+            gain = 1.0 + distortion * 5.0
+            sample = np.tanh(sample * gain) / gain
+            sample += distortion * 0.05 * (np.random.random() - 0.5)
+        
+        sample *= amplitude
+        samples[i] = sample
+        
+        # Update phase
+        phase += 2.0 * np.pi * freq / sample_rate
+        if phase > 2.0 * np.pi:
+            phase -= 2.0 * np.pi
+    
+    # Normalize to prevent clipping
+    max_val = np.max(np.abs(samples))
+    if max_val > 0:
+        samples = samples / max_val * 0.9
+    
+    # Convert to 16-bit PCM
+    samples_int = (samples * 32767).astype(np.int16)
+    
+    # Create WAV file in memory
+    wav_buffer = io.BytesIO()
+    with wave.open(wav_buffer, 'wb') as wav_file:
+        wav_file.setnchannels(1)  # Mono
+        wav_file.setsampwidth(2)  # 16-bit
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(samples_int.tobytes())
+    
+    wav_buffer.seek(0)
+    return wav_buffer.read()
 
 
 # ============================================================================
@@ -89,6 +186,17 @@ st.markdown("""
         color: #e74c3c;
         font-weight: bold;
     }
+    .author-info {
+        font-size: 0.85rem;
+        color: #888;
+        text-align: center;
+        margin-top: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .author-info a {
+        color: #1E88E5;
+        text-decoration: none;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -101,9 +209,66 @@ st.markdown('<p class="main-header">🔊 The Audible Integrator</p>', unsafe_all
 st.markdown('<p class="sub-header">Sonification of Energy Drift in Numerical Integration</p>', 
             unsafe_allow_html=True)
 
+# Author information
+st.markdown('''
+<p class="author-info">
+    <strong>Author:</strong> Ryan Kamp | 
+    <strong>Affiliation:</strong> University of Cincinnati, Department of Computer Science<br>
+    <strong>Email:</strong> <a href="mailto:kamprj@mail.uc.edu">kamprj@mail.uc.edu</a> | 
+    <strong>Last Updated:</strong> January 22, 2026
+</p>
+''', unsafe_allow_html=True)
+
+# Detailed description with examples
+with st.expander("ℹ️ **What does this simulation do?** (Click to learn more)", expanded=False):
+    st.markdown("""
+    ### Understanding the Simulation
+    
+    This interactive tool demonstrates a fundamental concept in computational physics: 
+    **how the choice of numerical algorithm affects the accuracy of physics simulations**.
+    
+    #### The Core Problem
+    
+    When scientists simulate physical systems on computers—whether modeling protein folding, 
+    predicting planetary orbits, or designing new materials—they must break continuous motion 
+    into discrete time steps. The algorithm used to calculate each step is called a 
+    **numerical integrator**.
+    
+    **The critical insight:** Not all integrators are created equal. Some preserve the 
+    fundamental physics (like energy conservation), while others introduce errors that 
+    accumulate over time, leading to physically meaningless results.
+    
+    #### What You'll See (and Hear!)
+    
+    This simulation lets you:
+    - **Compare four different integration algorithms** on the same physical system
+    - **Watch energy conservation** (or lack thereof) in real-time
+    - **Listen to the simulation**—stable algorithms produce a steady tone, while 
+      unstable ones create rising pitch and distorted sounds
+    
+    #### Real-World Applications
+    
+    | Field | Application | Why Integrator Choice Matters |
+    |-------|-------------|-------------------------------|
+    | 🧬 **Drug Discovery** | Molecular dynamics of proteins | Simulations run for billions of steps; small errors compound |
+    | 🚀 **Space Exploration** | Satellite trajectory planning | Missions span years; drift causes missed targets |
+    | 🌡️ **Climate Science** | Long-term weather models | Century-scale predictions need stable algorithms |
+    | ⚛️ **Particle Physics** | Accelerator beam dynamics | Particles circulate millions of times |
+    | 🎮 **Video Games** | Physics engines for realism | Objects shouldn't spontaneously gain energy! |
+    
+    #### The Key Takeaway
+    
+    **Symplectic integrators** (like Velocity Verlet and Leapfrog) are specifically designed 
+    to preserve the geometric structure of physics. They may be less "accurate" on paper, 
+    but they maintain energy bounds forever—making them essential for long simulations.
+    
+    **Non-symplectic integrators** (like Forward Euler) can show dramatic energy drift 
+    in just seconds, which you'll both see on the plots and *hear* as rising pitch!
+    """)
+
 st.markdown("""
 This interactive demo shows how different numerical integration methods preserve (or don't preserve)
-energy in classical mechanical systems. In real audio mode, you would *hear* the simulation—
+energy in classical mechanical systems. Run a simulation and **listen to the generated audio**—
 stable integrators produce a steady tone, while unstable ones create rising, distorted sounds.
 """)
 
@@ -255,6 +420,37 @@ if 'result' in st.session_state:
             "Energy Std Dev",
             f"{result.energy_std:.6f} J"
         )
+    
+    # Audio Sonification Section
+    st.markdown("---")
+    st.subheader("🔊 Listen to the Simulation")
+    
+    audio_col1, audio_col2 = st.columns([2, 1])
+    
+    with audio_col1:
+        st.markdown("""
+        **How to interpret the audio:**
+        - 🎵 **Steady pitch** = Stable energy (good!)
+        - 📈 **Rising pitch** = Energy is increasing (unstable!)
+        - 🔊 **Increasing volume** = Energy growing
+        - 😖 **Distorted sound** = Wildly fluctuating energy
+        """)
+    
+    with audio_col2:
+        if st.button("🎧 Generate Audio", type="secondary"):
+            with st.spinner("Generating sonification..."):
+                audio_bytes = generate_sonification_audio(
+                    result.energies, 
+                    result.times, 
+                    result.initial_energy
+                )
+                st.session_state['audio_bytes'] = audio_bytes
+                st.session_state['audio_integrator'] = result.integrator_name
+    
+    if 'audio_bytes' in st.session_state:
+        st.audio(st.session_state['audio_bytes'], format='audio/wav')
+        st.caption(f"🎵 Sonification of {st.session_state.get('audio_integrator', 'simulation')} - "
+                   f"Listen for pitch changes indicating energy drift!")
     
     # Plots
     st.markdown("---")
@@ -485,6 +681,31 @@ if 'comparison' in st.session_state:
     plt.tight_layout()
     st.pyplot(fig)
     plt.close()
+    
+    # Audio comparison section
+    st.markdown("### 🔊 Listen to the Difference")
+    st.markdown("Generate audio for each integrator to *hear* the energy drift!")
+    
+    audio_cols = st.columns(4)
+    integrator_names = ['Forward Euler', 'Runge-Kutta 4', 'Velocity Verlet', 'Leapfrog']
+    
+    for idx, int_name in enumerate(integrator_names):
+        with audio_cols[idx]:
+            if int_name in results:
+                r = results[int_name]
+                emoji = "🔴" if not r.is_symplectic else "🟢"
+                st.markdown(f"**{emoji} {int_name}**")
+                
+                button_key = f"audio_{int_name.replace(' ', '_').replace('-', '_')}"
+                if st.button(f"🎧 Play", key=button_key):
+                    with st.spinner("Generating..."):
+                        audio_bytes = generate_sonification_audio(
+                            r.energies, r.times, r.initial_energy
+                        )
+                        st.session_state[f'comparison_audio_{int_name}'] = audio_bytes
+                
+                if f'comparison_audio_{int_name}' in st.session_state:
+                    st.audio(st.session_state[f'comparison_audio_{int_name}'], format='audio/wav')
 
 
 # ============================================================================
